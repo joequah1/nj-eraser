@@ -1,20 +1,20 @@
 export default class Eraser {
-	constructor (options) {
-		console.log(options)
+    constructor (options) {
         this.init(options)
     }
 
     init (options) {
 
-    	this.ele = options.ele
-    	this.width = this.ele.naturalWidth
-    	this.height = this.ele.naturalHeight
-    	this.completeRatio = options.completeRatio || 0.3
-    	this.completeFunction = options.completeFunction || null
-    	this.startFunction = options.startFunction || null
+        this.ele = options.ele
+        this.width = options.width || this.ele.naturalWidth
+        this.height = options.height || this.ele.naturalHeight
+        this.completeRatio = options.completeRatio || 0.3
+        this.completeFunction = options.completeFunction || null
+        this.startFunction = options.startFunction || null
+        this.loadFunction = options.loadFunction || null
 
-    	this.started = false
-    	this.canvas = document.createElement('canvas');
+        this.started = false
+        this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext("2d");
         this.canvas.id = "eraser";
         this.canvas.className = "canvas";                  
@@ -23,20 +23,21 @@ export default class Eraser {
 
         this.size = 40 
         this.colParts = Math.floor(this.width / this.size)
-		this.numParts = this.colParts * Math.floor(this.height / this.size)
+        this.numParts = this.colParts * Math.floor(this.height / this.size)
         this.parts = []
         this.complete = false
         this.ratio = 0
         this.adjustment = 1
 
-		let n = this.numParts
+        let n = this.numParts
 
         while(n--) this.parts.push(1)
 
-        this.ctx.drawImage(this.ele, 0, 0);        
+        this.ctx.drawImage(this.ele, 0, 0, this.width, this.height);        
         this.ele.parentNode.insertBefore(this.canvas, this.ele);    
         setTimeout(()=>{
-        	this.ele.parentNode.removeChild(this.ele)
+            this.ele.parentNode.removeChild(this.ele)
+            this.loadFunction()
         }, 100)
         
         this.events()
@@ -55,23 +56,23 @@ export default class Eraser {
     }
 
     start (e) {
-    	e.preventDefault()
-    	this.isPress = true;
-    	this.rect = e.target.getBoundingClientRect()
-		this.old = {x: e.offsetX || e.targetTouches[0].clientX, y : e.offsetY || e.targetTouches[0].clientY};
+        e.preventDefault()
+        this.isPress = true;
+        this.rect = e.target.getBoundingClientRect()
+        this.old = {x: e.offsetX || e.targetTouches[0].clientX - this.rect.left, y : e.offsetY || e.targetTouches[0].clientY - this.rect.top};
 
-		if (!this.started && this.startFunction != null) {
-			this.started = true
-			this.startFunction()
-		}
+        if (!this.started && this.startFunction != null) {
+            this.started = true
+            this.startFunction()
+        }
     }
 
     move (e) {
-    	e.preventDefault()
-    	if (this.isPress && !this.complete) {
-    		this.rect = e.target.getBoundingClientRect()
-            var x = e.offsetX || e.targetTouches[0].clientX;
-            var y = e.offsetY || e.targetTouches[0].clientY;
+        e.preventDefault()
+        if (this.isPress && !this.complete) {
+            this.rect = e.target.getBoundingClientRect()
+            var x = e.offsetX || e.targetTouches[0].clientX - this.rect.left;
+            var y = e.offsetY || e.targetTouches[0].clientY - this.rect.top;
             this.ctx.globalCompositeOperation = 'destination-out';
 
             this.ctx.beginPath();
@@ -87,18 +88,15 @@ export default class Eraser {
             this.old = {x: x, y: y};
 
             this.evaluatePoint(x, y)
-		}
+        }
     }
 
     end (e) {
-    	e.preventDefault()
-    	this.isPress = false;
-    	console.log('end')
+        e.preventDefault()
+        this.isPress = false;
     }
 
     remove () {
-    	console.log('remove')
-
         this.canvas.removeEventListener('mousedown', this.start, true);
         this.canvas.removeEventListener('mousemove', this.move, true);
         this.canvas.removeEventListener('mouseup', this.end, true);
@@ -109,25 +107,32 @@ export default class Eraser {
     }
 
     evaluatePoint (x, y) {
-		var p = Math.floor(x/this.size) + Math.floor( y / this.size ) * this.colParts;
+        var p = Math.floor(x/this.size) + Math.floor( y / this.size ) * this.colParts;
 
-		if ( p >= 0 && p < this.numParts ) {
-			this.ratio += this.parts[p];
-			this.parts[p] = 0;
-			if (!this.complete) {
-				p = this.ratio/this.numParts;
-				console.log(p)
-				if ( p >= this.completeRatio ) {
-					this.complete = true;
+        if ( p >= 0 && p < this.numParts ) {
+            this.ratio += this.parts[p];
+            this.parts[p] = 0;
+            if (!this.complete) {
+                p = this.ratio/this.numParts;
+                // console.log(p)
+                if ( p >= this.completeRatio ) {
+                    this.complete = true;
 
-					this.remove()
+                    this.remove()
 
-					if ( this.completeFunction != null ) this.completeFunction();
-				} else {
-					if ( this.progressFunction != null ) this.progressFunction(p);
-				}
-			}
-		}
+                    if ( this.completeFunction != null ) this.completeFunction();
+                } else {
+                    if ( this.progressFunction != null ) this.progressFunction(p);
+                }
+            }
+        }
 
+    }
+
+    reveal() {
+        this.canvas.style.transition = 'all 1s';
+        setTimeout(() => {
+            this.canvas.style.opacity = 0;
+        }, 100)
     }
 }
